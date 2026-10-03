@@ -1,0 +1,142 @@
+{
+    "dataRoles": [
+        {
+            "displayName": "User Name",
+            "name": "username",
+            "kind": "GroupingOrMeasure",
+            "description": "Drag a username or display name field here to personalise the chat greeting"
+        }
+    ],
+    "objects": {
+        "aiConfiguration": {
+            "displayName": "AI Configuration",
+            "properties": {
+                "backendUrl": {
+                    "displayName": "Backend URL",
+                    "description": "Base URL of the AskProp Data backend, for example https://your-backend-url.com",
+                    "type": { "text": true }
+                },
+                "secretKey": {
+                    "displayName": "Secret Key",
+                    "description": "Sent to the backend for verification against its server-side SECRET_KEY.",
+                    "type": { "text": true }
+                },
+                "savePath": {
+                    "displayName": "Save Response Path",
+                    "description": "Backend path called only when the user clicks Save Response.",
+                    "type": { "text": true }
+                },
+                "mapsApiKey": {
+                    "displayName": "Google Maps API Key",
+                    "description": "Browser key restricted to your Power BI domains and the Maps JavaScript API.",
+                    "type": { "text": true }
+                }
+            }
+        },
+        "header": {
+            "displayName": "Header",
+            "properties": {
+                "backgroundColor": { "displayName": "Background Color", "type": { "fill": { "solid": { "color": true } } } },
+                "height": { "displayName": "Height (px)", "type": { "numeric": true } },
+                "paddingH": { "displayName": "Horizontal Padding (px)", "type": { "numeric": true } },
+                "titleColor": { "displayName": "Title Color", "type": { "fill": { "solid": { "color": true } } } },
+                "subtitleColor": { "displayName": "Subtitle Color", "type": { "fill": { "solid": { "color": true } } } },
+                "fontFamily": { "displayName": "Font Family", "type": { "text": true } },
+                "titleFontSize": { "displayName": "Title Font Size (px)", "type": { "numeric": true } },
+                "subtitleFontSize": { "displayName": "Subtitle Font Size (px)", "type": { "numeric": true } },
+                "borderColor": { "displayName": "Bottom Border Color", "type": { "fill": { "solid": { "color": true } } } }
+            }
+        },
+        "chatInput": {
+            "displayName": "Chat Input",
+            "properties": {
+                "backgroundColor": { "displayName": "Background Color", "type": { "fill": { "solid": { "color": true } } } },
+                "borderColor": { "displayName": "Border Color", "type": { "fill": { "solid": { "color": true } } } },
+                "borderRadius": { "displayName": "Border Radius (px)", "type": { "numeric": true } },
+                "padding": { "displayName": "Padding (px)", "type": { "numeric": true } }
+            }
+        },
+        "sendButton": {
+            "displayName": "Send Button",
+            "properties": {
+                "backgroundColor": { "displayName": "Background Color", "type": { "fill": { "solid": { "color": true } } } },
+                "iconColor": { "displayName": "Icon Color", "type": { "fill": { "solid": { "color": true } } } },
+                "hoverBackground": { "displayName": "Hover Background Color", "type": { "fill": { "solid": { "color": true } } } },
+                "borderRadius": { "displayName": "Border Radius (px)", "type": { "numeric": true } },
+                "width": { "displayName": "Width (px)", "type": { "numeric": true } },
+                "height": { "displayName": "Height (px)", "type": { "numeric": true } }
+            }
+        },
+        "messageBubble": {
+            "displayName": "Chat Bubbles",
+            "properties": {
+                "userBg": { "displayName": "User Bubble Background", "type": { "fill": { "solid": { "color": true } } } },
+                "userText": { "displayName": "User Bubble Text", "type": { "fill": { "solid": { "color": true } } } },
+                "aiBg": { "displayName": "AI Bubble Background", "type": { "fill": { "solid": { "color": true } } } },
+                "aiText": { "displayName": "AI Bubble Text", "type": { "fill": { "solid": { "color": true } } } },
+                "fontFamily": { "displayName": "Font Family", "type": { "text": true } },
+                "fontSize": { "displayName": "Font Size (px)", "type": { "numeric": true } },
+                "borderRadius": { "displayName": "Border Radius (px)", "type": { "numeric": true } }
+            }
+        },
+        "map": {
+            "displayName": "Property Map",
+            "properties": {
+                "backgroundColor": { "displayName": "Background Color", "type": { "fill": { "solid": { "color": true } } } },
+                "targetColor": { "displayName": "Subject Property Color", "type": { "fill": { "solid": { "color": true } } } },
+                "nearbyColor": { "displayName": "Nearby Property Color", "type": { "fill": { "solid": { "color": true } } } },
+                "lineColor": { "displayName": "Connector Line Color", "type": { "fill": { "solid": { "color": true } } } },
+                "labelColor": { "displayName": "Label Color", "type": { "fill": { "solid": { "color": true } } } },
+                "markerSize": { "displayName": "Marker Size (px)", "type": { "numeric": true } }
+            }
+        },
+        "comparisonTable": {
+            "displayName": "Comparison Table",
+            "properties": {
+                "headerBg": { "displayName": "Header Background", "type": { "fill": { "solid": { "color": true } } } },
+                "headerColor": { "displayName": "Header Text Color", "type": { "fill": { "solid": { "color": true } } } },
+                "rowBg": { "displayName": "Row Background", "type": { "fill": { "solid": { "color": true } } } },
+                "altRowBg": { "displayName": "Alternate Row Background", "type": { "fill": { "solid": { "color": true } } } },
+                "borderColor": { "displayName": "Border Color", "type": { "fill": { "solid": { "color": true } } } },
+                "textColor": { "displayName": "Text Color", "type": { "fill": { "solid": { "color": true } } } },
+                "fontSize": { "displayName": "Font Size (px)", "type": { "numeric": true } }
+            }
+        },
+        "footer": {
+            "displayName": "Footer",
+            "properties": {
+                "text": { "displayName": "Footer Text", "type": { "text": true } },
+                "textColor": { "displayName": "Text Color", "type": { "fill": { "solid": { "color": true } } } },
+                "backgroundColor": { "displayName": "Background Color", "type": { "fill": { "solid": { "color": true } } } },
+                "fontSize": { "displayName": "Font Size (px)", "type": { "numeric": true } }
+            }
+        }
+    },
+    "dataViewMappings": [
+        {
+            "categorical": {
+                "categories": {
+                    "for": { "in": "username" },
+                    "dataReductionAlgorithm": { "top": { "count": 1 } }
+                }
+            }
+        }
+    ],
+    "privileges": [
+        {
+            "name": "WebAccess",
+            "essential": true,
+            "parameters": [
+                "https://*.azurewebsites.net",
+                "https://*.googleapis.com",
+                "https://*.gstatic.com",
+                "https://*.google.com"
+            ]
+        },
+        {
+            "name": "ExportContent",
+            "essential": false
+        }
+    ],
+    "suppressDefaultTitle": true
+}
