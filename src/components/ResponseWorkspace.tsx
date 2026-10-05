@@ -1,9 +1,11 @@
 import * as React from "react";
+import type { FinancialPeriod, FinancialsPayload } from "../api";
 import type { VisualSettings } from "../settings";
 import type { ChatEntry, FilterOptions, FilterState } from "../types";
 import { applyFilters } from "../utils/filters";
 import { toMapProperties } from "../utils/normalize";
 import DataTable from "./DataTable";
+import FinancialComparison from "./FinancialComparison";
 import MapView, { type MapHandle } from "./MapView";
 import PropertyCard from "./PropertyCard";
 import PropertyComparison from "./PropertyComparison";
@@ -20,11 +22,12 @@ export interface ResponseWorkspaceProps {
     settings: VisualSettings;
     onFiltersReset: () => void;
     onRetry: (entry: ChatEntry) => void;
+    onLoadFinancials?: (keys: string[], view: "actual" | "budget", period: FinancialPeriod | null) => Promise<FinancialsPayload>;
 }
 
 export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
     entry, busy, thinkingLabel, filters, options, settings,
-    onFiltersReset, onRetry,
+    onFiltersReset, onRetry, onLoadFinancials,
 }) => {
     const mapRef = React.useRef<MapHandle>(null);
     const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
@@ -46,11 +49,19 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
     const mapProps = React.useMemo(() => toMapProperties(visibleRows), [visibleRows]);
     const coverageProps = React.useMemo(() => (result ? toMapProperties(result.rows) : []), [result]);
 
+    // Compare Properties is a financial comparison; property details belong to Find Nearby.
+    const isCompare = result?.taskKind === "compare";
+    const financials = isCompare ? result?.financials ?? null : null;
+    const financialsError = isCompare ? result?.financialsError ?? null : null;
+    const showFinancials = Boolean(financials) && visibleRows.length > 0;
+    const showFinancialsError = isCompare && !financials && Boolean(financialsError);
+    const allowedKeys = React.useMemo(() => new Set(visibleRows.map(r => r.key)), [visibleRows]);
+
     const hasMap = mapProps.length > 0;
-    const hasTable = visibleRows.length > 0 && (result?.columns.length ?? 0) > 0;
+    const hasTable = !isCompare && visibleRows.length > 0 && (result?.columns.length ?? 0) > 0;
     const selectedProperty = mapProps.find(p => p.key === selectedKey) ?? null;
     const tableFont = Math.min(18, Math.max(10, settings.comparisonTable.fontSize + fontDelta));
-    const zoomTarget: "map" | "table" | null = hasMap ? "map" : hasTable ? "table" : null;
+    const zoomTarget: "map" | "table" | null = hasMap ? "map" : hasTable || showFinancials ? "table" : null;
 
     const handleZoom = (dir: 1 | -1) => {
         if (zoomTarget === "map") {
@@ -74,7 +85,7 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
         body = <EmptyState title="Your analysis will appear here" message="Ask a question to see maps and tables." />;
     } else {
         const filteredOut = result.rows.length > 0 && visibleRows.length === 0;
-        const textOnly = !hasMap && !hasTable && !filteredOut;
+        const textOnly = !hasMap && !hasTable && !showFinancials && !showFinancialsError && !filteredOut;
         body = (
             <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", minHeight: 0 }}>
                 <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -140,6 +151,36 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
                                     {selectedProperty && (
                                         <PropertyCard property={selectedProperty} onClose={() => setSelectedKey(null)} />
                                     )}
+                                </div>
+                            </section>
+                        )}
+
+                        {showFinancialsError && (
+                            <section className="ap-panel" style={{ flex: "0 0 auto" }}>
+                                <ErrorState message={financialsError ?? "Financial data is unavailable."} />
+                            </section>
+                        )}
+
+                        {showFinancials && financials && (
+                            <section
+                                className="ap-panel"
+                                aria-label="Financial comparison"
+                                style={{ flex: hasMap ? "1 1 44%" : "1 1 100%", minHeight: 320, display: "flex", flexDirection: "column" }}
+                            >
+                                <div className="ap-panel-head">
+                                    <span>Financial Comparison</span>
+                                </div>
+                                <div style={{ position: "relative", flex: "1 1 0", minHeight: 0 }}>
+                                    <div style={{ position: "absolute", inset: 0 }}>
+                                        <FinancialComparison
+                                            financials={financials}
+                                            subjectKey={result?.subjectKey ?? null}
+                                            allowedKeys={allowedKeys}
+                                            onLoadFinancials={onLoadFinancials}
+                                            fontSize={tableFont}
+                                            settings={settings.comparisonTable}
+                                        />
+                                    </div>
                                 </div>
                             </section>
                         )}

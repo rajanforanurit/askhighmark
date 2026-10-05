@@ -1,3 +1,4 @@
+import type { FinancialsPayload, TaskInfo } from "./api";
 export type ColumnType = "text" | "integer" | "currency" | "currency0" | "percent" | "year" | "distance";
 export interface TableColumn {
     key: string;
@@ -26,7 +27,13 @@ export interface AnalysisResult {
     comparable: boolean;
     unresolved: string[];
     raw: unknown;
+    notes?: string[];
+    taskId?: string | null;
+    taskKind?: TaskInfo["kind"] | null;
+    financials?: FinancialsPayload | null;
+    financialsError?: string | null;
 }
+export type FinancialMode = "off" | "actual" | "budget";
 export interface MapProperty {
     key: string;
     name: string;

@@ -1,10 +1,20 @@
-import type { AskAIResult, ComparisonResult, PropertyRecord } from "../api";
+import type {
+    AskAIResult, ComparisonResult, FinancialsPayload, PropertyRecord, TaskInfo,
+} from "../api";
 import type { AnalysisResult, ColumnType, MapProperty, Metric, TableColumn, TableRow } from "../types";
 import { FIELD_ALIASES, pick } from "./fields";
 import { compact, formatValue, humanize, inferColumnType, toNumber } from "./format";
 import { toMapProperty } from "./validation";
 
 const HIDDEN_KEYS = new Set(["PropertyBizKey", "Latitude", "Longitude", "raw"]);
+
+export interface ResultExtras {
+    notes?: string[];
+    taskId?: string | null;
+    taskKind?: TaskInfo["kind"] | null;
+    financials?: FinancialsPayload | null;
+    financialsError?: string | null;
+}
 
 let resultCounter = 0;
 
@@ -55,6 +65,7 @@ function finalize(
     unresolved: string[],
     raw: unknown,
     preferred?: string[],
+    extras?: ResultExtras,
 ): AnalysisResult {
     const rows = buildRows(records, subjectKey);
     const columns = buildColumns(records, preferred);
@@ -74,6 +85,49 @@ function finalize(
         comparable,
         unresolved,
         raw,
+        notes: extras?.notes ?? [],
+        taskId: extras?.taskId ?? null,
+        taskKind: extras?.taskKind ?? null,
+        financials: extras?.financials ?? null,
+        financialsError: extras?.financialsError ?? null,
+    };
+}
+
+function plural(n: number, one: string, many: string): string {
+    return n === 1 ? one : many;
+}
+
+function describeAsk(result: AskAIResult): string {
+    const task = result.task;
+    const radius = task?.radius_miles ? ` within ${task.radius_miles} miles` : "";
+    const fields = Array.from(new Set((task?.constraints_applied ?? []).map(c => humanize(c.field).toLowerCase())));
+    const criteria = fields.length > 0 ? ` matching your ${fields.join(", ")} criteria` : "";
+
+    if (result.target) {
+        const name = String(result.target.PropertyName ?? "this property");
+        const n = result.nearby?.length ?? 0;
+        if (n === 0) return `I couldn't find other properties${radius}${criteria} for ${name}.`;
+        if (task?.kind === "compare") {
+            return `Comparing ${name} with ${n} ${plural(n, "property", "properties")}${radius}${criteria}.`;
+        }
+        return `Here's ${name} and ${n} nearby ${plural(n, "property", "properties")}${radius}${criteria}.`;
+    }
+    if (result.comparison) return "Here's the comparison.";
+    if (result.results) {
+        const n = result.results.length;
+        if (n === 0) return "No matching properties found.";
+        return `Found ${n} matching ${plural(n, "property", "properties")}${criteria}.`;
+    }
+    return "Here's what I found.";
+}
+
+function extrasFrom(result: AskAIResult): ResultExtras {
+    return {
+        notes: result.task?.notes ?? [],
+        taskId: result.task?.id ?? null,
+        taskKind: result.task?.kind ?? null,
+        financials: result.financials ?? null,
+        financialsError: result.financials_error ?? null,
     };
 }
 
@@ -83,6 +137,7 @@ export function fromNearest(
     comparison: ComparisonResult | undefined,
     answer: string,
     raw: unknown,
+    extras?: ResultExtras,
 ): AnalysisResult {
     const subjectKey = target.PropertyBizKey ? String(target.PropertyBizKey) : null;
     const byKey = new Map<string, Record<string, unknown>>();
@@ -106,11 +161,12 @@ export function fromNearest(
         records = [{ ...target }, ...nearby.map(p => ({ ...p }))];
     }
     const missing = comparison?.not_found ?? [];
-    return finalize(answer, records, subjectKey, Boolean(comparison), missing, raw, preferred);
+    return finalize(answer, records, subjectKey, Boolean(comparison), missing, raw, preferred, extras);
 }
 
 export function fromAsk(result: AskAIResult): AnalysisResult {
     const raw = result;
+    const extras = extrasFrom(result);
     if (result.target || result.comparison) {
         const target = result.target;
         if (target) {
@@ -118,26 +174,35 @@ export function fromAsk(result: AskAIResult): AnalysisResult {
                 target,
                 result.nearby ?? [],
                 result.comparison,
-                result.message ?? "Here's what I found.",
+                result.message ?? describeAsk(result),
                 raw,
+                extras,
             );
         }
         const comparison = result.comparison as ComparisonResult;
-        const answer = result.message ?? "Here's the comparison.";
+        const answer = result.message ?? describeAsk(result);
         return finalize(
             answer,
             comparison.properties,
-            null,
+            result.task?.subject_key ?? null,
             true,
             [...(comparison.not_found ?? []), ...(result.unresolved ?? [])],
             raw,
             comparison.fields,
+            extras,
         );
     }
     if (result.results) {
-        const n = result.results.length;
-        const answer = result.message ?? (n > 0 ? `Found ${n} matching ${n === 1 ? "property" : "properties"}.` : "No matching properties found.");
-        return finalize(answer, result.results.map(p => ({ ...p })), null, false, result.unresolved ?? [], raw);
+        return finalize(
+            result.message ?? describeAsk(result),
+            result.results.map(p => ({ ...p })),
+            null,
+            false,
+            result.unresolved ?? [],
+            raw,
+            undefined,
+            extras,
+        );
     }
     return finalize(
         result.message ?? "I couldn't understand that. Try naming a specific property.",
@@ -146,6 +211,8 @@ export function fromAsk(result: AskAIResult): AnalysisResult {
         false,
         result.unresolved ?? [],
         raw,
+        undefined,
+        extras,
     );
 }
 

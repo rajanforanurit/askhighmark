@@ -1,8 +1,9 @@
 import * as React from "react";
 import type { VisualSettings } from "./settings";
 import {
-    ApiError, askAI, compareWithNearest, describeError, isConfigured, saveResponse,
-    searchProperties, type BackendConfig,
+    ApiError, askAI, compareProperties, compareWithNearest, describeError, fetchFinancials, isConfigured,
+    saveResponse, searchProperties, warmUp,
+    type BackendConfig, type FinancialPeriod, type FinancialsPayload,
 } from "./api";
 import { STYLES } from "./styles";
 import type { ChatEntry, FilterState, Phase, ToastMessage } from "./types";
@@ -17,6 +18,7 @@ import FilterDrawer from "./components/FilterDrawer";
 import TopActions, { type PanelView } from "./components/TopActions";
 import WelcomeScreen, { type QuickAction } from "./components/WelcomeScreen";
 import { ConfigNotice } from "./components/StateViews";
+import {FinancialMeasure} from "./components/FinancialPanel";
 
 export interface AppProps {
     settings: VisualSettings;
@@ -91,6 +93,21 @@ const App: React.FC<AppProps> = ({ settings, username, viewport }) => {
     }, [activeResultId]);
 
     React.useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+    React.useEffect(() => {
+        if (configured) warmUp(config);
+    }, [configured, config]);
+
+    const loadFinancials = React.useCallback(
+        async (keys: string[], view: "actual" | "budget", period: FinancialPeriod | null): Promise<FinancialsPayload> => {
+            const options = { view, yearMonthFrom: period?.year_month_from, yearMonthTo: period?.year_month_to };
+            if (keys.length === 1) return fetchFinancials(config, keys[0], options);
+            const response = await compareProperties(config, keys, options);
+            if (!response.financials) throw new ApiError("server");
+            return response.financials;
+        },
+        [config],
+    );
 
     const notify = React.useCallback((text: string, tone: "info" | "error" = "info") => {
         setToast({ id: Date.now(), text, tone });
@@ -296,6 +313,7 @@ const App: React.FC<AppProps> = ({ settings, username, viewport }) => {
             settings={settings}
             onFiltersReset={() => setFilters(createDefaultFilters())}
             onRetry={handleRetry}
+            onLoadFinancials={loadFinancials}
         />
     );
 
