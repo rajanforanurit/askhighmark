@@ -56,7 +56,6 @@ const SECTION_TITLES: Record<SectionKey, string> = {
     other: "Other / Unmapped",
 };
 
-// Sections that show individual GL accounts; the rest show their total only.
 const DETAIL_SECTIONS: SectionKey[] = ["revenue", "operating_expenses"];
 const TOP_ACCOUNTS = 10;
 
@@ -233,7 +232,6 @@ export const FinancialComparison: React.FC<FinancialComparisonProps> = ({
     const [error, setError] = React.useState<string | null>(null);
     const requestId = React.useRef(0);
 
-    // A new result replaces everything, including any lazily loaded budget/actual data.
     React.useEffect(() => {
         requestId.current += 1;
         setSources(seedSources(financials));
@@ -271,7 +269,6 @@ export const FinancialComparison: React.FC<FinancialComparisonProps> = ({
         if (!active && !loading && !error) load();
     }, [active, loading, error, load]);
 
-    // Switching tabs clears a stale error so the other view can load on its own.
     const selectTab = (next: Tab) => {
         if (next !== tab) setError(null);
         setTab(next);
@@ -303,13 +300,8 @@ export const FinancialComparison: React.FC<FinancialComparisonProps> = ({
         "--ap-table-text": settings.textColor,
     } as React.CSSProperties;
 
-    // Every header row is sticky at its own fixed offset, so the rows stack cleanly
-    // instead of sitting on top of each other (or of the data) while scrolling.
     const rowH = Math.max(24, Math.round(fontSize * 2.2));
-    const headCell = (row: number, extra?: React.CSSProperties): React.CSSProperties => ({
-        position: "sticky",
-        top: row * rowH,
-        zIndex: 3,
+    const headCell = (extra?: React.CSSProperties): React.CSSProperties => ({
         height: rowH,
         boxSizing: "border-box",
         background: "var(--ap-head-bg)",
@@ -321,10 +313,9 @@ export const FinancialComparison: React.FC<FinancialComparisonProps> = ({
         whiteSpace: "nowrap",
         ...extra,
     });
-    const cornerCell = (row: number, extra?: React.CSSProperties): React.CSSProperties =>
-        headCell(row, { left: 0, zIndex: 5, textAlign: "left", minWidth: 220, ...extra });
+    const cornerCell = (extra?: React.CSSProperties): React.CSSProperties =>
+        headCell({ position: "sticky", left: 0, zIndex: 5, textAlign: "left", minWidth: 220, ...extra });
 
-    // Opaque backgrounds only: translucent ones let scrolled content show through the sticky column.
     const bodyBg = (kind: Line["kind"], index: number): React.CSSProperties => {
         const base = index % 2 === 0 ? "var(--ap-row-bg)" : "var(--ap-row-alt)";
         if (kind === "total") {
@@ -362,39 +353,39 @@ export const FinancialComparison: React.FC<FinancialComparisonProps> = ({
                 >
                     <thead>
                         <tr>
-                            <th scope="col" style={cornerCell(0)} />
+                            <th scope="col" style={cornerCell()} />
                             {model.columns.map(c => (
-                                <th key={c.key} scope="col" colSpan={3} style={headCell(0)}>
+                                <th key={c.key} scope="col" colSpan={3} style={headCell()}>
                                     {c.name}
                                     {c.key === subjectKey && <span className="ap-tag">Subject</span>}
                                 </th>
                             ))}
                         </tr>
                         <tr>
-                            <th style={cornerCell(1)} />
+                            <th style={cornerCell()} />
                             {model.columns.map(c => (
-                                <th key={c.key} colSpan={3} style={headCell(1, { fontWeight: 500 })}>{c.assetType || "–"}</th>
+                                <th key={c.key} colSpan={3} style={headCell({ fontWeight: 500 })}>{c.assetType || "–"}</th>
                             ))}
                         </tr>
                         <tr>
-                            <th style={cornerCell(2)} />
+                            <th style={cornerCell()} />
                             {model.columns.map(c => (
-                                <th key={c.key} colSpan={3} style={headCell(2, { fontWeight: 500 })}>{c.location || "–"}</th>
+                                <th key={c.key} colSpan={3} style={headCell({ fontWeight: 500 })}>{c.location || "–"}</th>
                             ))}
                         </tr>
                         <tr>
-                            <th style={cornerCell(3)} />
+                            <th style={cornerCell()} />
                             {model.columns.map(c => (
-                                <th key={c.key} colSpan={3} style={headCell(3, { fontWeight: 500 })}>{c.yearBuilt || "–"}</th>
+                                <th key={c.key} colSpan={3} style={headCell({ fontWeight: 500 })}>{c.yearBuilt || "–"}</th>
                             ))}
                         </tr>
                         <tr>
-                            <th scope="col" style={cornerCell(4)}>Line item</th>
+                            <th scope="col" style={cornerCell()}>Line item</th>
                             {model.columns.map(c => (
                                 <React.Fragment key={c.key}>
-                                    <th style={headCell(4)}>{amountLabel}</th>
-                                    <th style={headCell(4)}>$ / Unit</th>
-                                    <th style={headCell(4)}>Units</th>
+                                    <th style={headCell()}>{amountLabel}</th>
+                                    <th style={headCell()}>$ / Unit</th>
+                                    <th style={headCell()}>Units</th>
                                 </React.Fragment>
                             ))}
                         </tr>
