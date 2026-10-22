@@ -9,7 +9,6 @@ import FinancialComparison from "./FinancialComparison";
 import MapView, { type MapHandle } from "./MapView";
 import PropertyCard from "./PropertyCard";
 import PropertyComparison from "./PropertyComparison";
-import ResponseToolbar from "./ResponseToolbar";
 import { EmptyState, ErrorState } from "./StateViews";
 import Icon from "./Icons";
 import TipsLoader from "./TipsLoader";
@@ -44,7 +43,7 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
 }) => {
     const mapRef = React.useRef<MapHandle>(null);
     const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
-    const [fontDelta, setFontDelta] = React.useState(0);
+    const fontDelta = 0;
     const [chartOverride, setChartOverride] = React.useState<{ id: string; chart: ChartRequest | null } | null>(null);
     const [expanded, setExpanded] = React.useState<{ id: string; panel: PanelId } | null>(null);
     const [comparisonTab, setComparisonTab] = React.useState<ComparisonTab>("financial");
@@ -59,7 +58,6 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
 
     React.useEffect(() => {
         setSelectedKey(null);
-        setFontDelta(0);
         setComparisonTab("financial");
     }, [result?.id]);
 
@@ -108,10 +106,6 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
         if (entry && onSelectionChange) onSelectionChange(entry.id, keys);
     };
     const chartHeight = chart?.type === "pie" ? 340 : Math.min(460, Math.max(260, visibleRows.length * 30 + 120));
-    const infoNotes = React.useMemo(
-        () => (result?.notes ?? []).filter(n => /unit|chart/i.test(n)).slice(0, 3),
-        [result],
-    );
     const selectedProperty = mapProps.find(p => p.key === selectedKey) ?? null;
     // The Financial Comparison (data, loading or error state) and the Property Comparison share one tabbed panel.
     const hasFinancialSection = showFinancials || showFinancialsPending || showFinancialsError;
@@ -137,7 +131,6 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
     }, [activeExpanded]);
 
     const tableFont = Math.min(18, Math.max(10, settings.comparisonTable.fontSize + fontDelta));
-    const zoomTarget: "map" | "table" | null = hasMap ? "map" : hasTable || showFinancials ? "table" : null;
     const onComparisonKeyDown = (e: React.KeyboardEvent) => {
         if (comparisonTabs.length < 2 || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
         e.preventDefault();
@@ -145,15 +138,6 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
         const next = comparisonTabs[(at + (e.key === "ArrowRight" ? 1 : comparisonTabs.length - 1)) % comparisonTabs.length];
         setComparisonTab(next);
         window.setTimeout(() => document.getElementById(`ap-cmp-tab-${next}`)?.focus(), 0);
-    };
-
-    const handleZoom = (dir: 1 | -1) => {
-        if (zoomTarget === "map") {
-            if (dir === 1) mapRef.current?.zoomIn();
-            else mapRef.current?.zoomOut();
-        } else {
-            setFontDelta(d => Math.min(6, Math.max(-2, d + dir)));
-        }
     };
 
     let body: React.ReactNode;
@@ -212,16 +196,6 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
         body = (
             <div style={{ display: "flex", flexDirection: "column", width: "100%", flex: "1 1 0", minHeight: 0 }}>
                 <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}>
-                    <ResponseToolbar
-                        zoomTarget={zoomTarget}
-                        summary={
-                            result.rows.length > 0
-                                ? `${result.area ? `${result.area.name} · ` : ""}${visibleRows.length} of ${result.rows.length} properties`
-                                : result.area ? result.area.name : "Text answer"
-                        }
-                        onZoomIn={() => handleZoom(1)}
-                        onZoomOut={() => handleZoom(-1)}
-                    />
                     {/* Positioned wrapper: an expanded panel (position: absolute; inset: 0) fills exactly this area,
                         below the toolbar, instead of being sized by the scrolling list it is rendered in. */}
                     <div style={{ position: "relative", flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -237,31 +211,6 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
                             ...(busy ? { opacity: 0.55, pointerEvents: "none" } : {}),
                         }}
                     >
-                        {result.unresolved.length > 0 && (
-                            <div style={{ flex: "0 0 auto", color: "var(--ap-danger)", padding: "0 4px" }}>
-                                Couldn't match: {result.unresolved.join(", ")}
-                            </div>
-                        )}
-
-                        {result.rows.length > 0 && (result.location?.message || (result.warnings?.length ?? 0) > 0) && (
-                            <div className="ap-note" role="status" style={{ flex: "0 0 auto" }}>
-                                {result.location?.message && <div>{result.location.message}</div>}
-                                {(result.warnings ?? [])
-                                    .filter(w => w.message !== result.location?.message)
-                                    .map(w => <div key={w.code + w.message}>{w.message}</div>)}
-                            </div>
-                        )}
-
-                        {result.area && result.rows.length === 0 && (
-                            <div className="ap-note" style={{ flex: "0 0 auto" }}>{result.answer}</div>
-                        )}
-
-                        {infoNotes.length > 0 && (
-                            <div className="ap-note" style={{ flex: "0 0 auto" }}>
-                                {infoNotes.map(n => <div key={n}>{n}</div>)}
-                            </div>
-                        )}
-
                         {showChart && chart && result && (
                             <section
                                 {...panelProps("chart")}
@@ -327,6 +276,15 @@ export const ResponseWorkspace: React.FC<ResponseWorkspaceProps> = ({
                                             {mapProps.length}
                                             {mapProps.length !== coverageProps.length ? ` of ${coverageProps.length}` : ""} plotted
                                         </span>
+                                        <button
+                                            type="button"
+                                            className="ap-btn ap-btn--ghost ap-icon-btn ap-tip"
+                                            data-tip="Zoom in map"
+                                            aria-label="Zoom in map"
+                                            onClick={() => mapRef.current?.zoomIn()}
+                                        >
+                                            <Icon name="plus" size={15} />
+                                        </button>
                                         <button
                                             type="button"
                                             className="ap-btn ap-btn--ghost ap-icon-btn ap-tip"

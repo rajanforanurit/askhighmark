@@ -2,7 +2,7 @@ import * as React from "react";
 import type { ChatInputSettings, MessageBubbleSettings, SendButtonSettings } from "../settings";
 import type { ChatEntry } from "../types";
 import ChatInputBar, { type AreaSuggestState } from "./ChatInputBar";
-import ChatMessage, { describeEntry } from "./ChatMessage";
+import ChatMessage, { backendMessages, describeEntry } from "./ChatMessage";
 import ThinkingIndicator from "./ThinkingIndicator";
 import type { PanelView } from "./TopActions";
 
@@ -49,6 +49,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }, [entries.length, thinkingLabel, view]);
 
+    const notices = React.useMemo(
+        () => backendMessages(entries.find(e => e.id === activeId)),
+        [entries, activeId],
+    );
+
     const saved = React.useMemo<SavedItem[]>(() => {
         const items: SavedItem[] = [];
         entries.forEach((entry, i) => {
@@ -80,16 +85,27 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             />
                         ))}
                         {thinkingLabel && <ThinkingIndicator label={thinkingLabel} size={44} />}
-                        {!thinkingLabel && suggestions.length > 0 && (
+                        {!thinkingLabel && (notices.length > 0 || suggestions.length > 0) && (
                             <div>
-                                <div className="ap-msg-meta" style={{ marginTop: 0, marginBottom: 6 }}>Follow-up questions</div>
-                                <div className="ap-chips">
-                                    {suggestions.map(s => (
-                                        <button key={s} type="button" className="ap-chip" onClick={() => onSuggest(s)} disabled={disabled}>
-                                            {s}
-                                        </button>
-                                    ))}
-                                </div>
+                                {notices.length > 0 && (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                                        {notices.map(n => (
+                                            <div key={n} className="ap-note" role="status">{n}</div>
+                                        ))}
+                                    </div>
+                                )}
+                                {suggestions.length > 0 && (
+                                    <>
+                                        <div className="ap-msg-meta" style={{ marginTop: 0, marginBottom: 6 }}>Follow-up questions</div>
+                                        <div className="ap-chips">
+                                            {suggestions.map(s => (
+                                                <button key={s} type="button" className="ap-chip" onClick={() => onSuggest(s)} disabled={disabled}>
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </>

@@ -8,5 +8,6 @@ export interface ChatMessageProps {
     onSelect: (id: string) => void;
 }
 export declare function describeEntry(entry: ChatEntry): string;
+export declare function backendMessages(entry: ChatEntry | null | undefined): string[];
 export declare const ChatMessage: React.FC<ChatMessageProps>;
 export default ChatMessage;

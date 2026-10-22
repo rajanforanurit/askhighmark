@@ -37,13 +37,14 @@ const LABEL_CELL: React.CSSProperties = {
     left: 0,
     zIndex: 2,
     minWidth: LABEL_MIN_WIDTH,
-    background: "inherit",
+    background: "var(--ap-row-bg, #fff)",
     fontWeight: 600,
     borderRight: "1px solid var(--ap-table-line, #e5e7eb)",
 };
 const HEAD_CELL: React.CSSProperties = {
     minWidth: COLUMN_MIN_WIDTH,
     verticalAlign: "bottom",
+    whiteSpace: "normal",
     borderLeft: "1px solid var(--ap-table-line, #e5e7eb)",
 };
 const SELECTED_BG = "var(--ap-accent-soft)";
@@ -67,16 +68,18 @@ export const PropertyComparison: React.FC<PropertyComparisonProps> = ({
         [rows],
     );
     const subject = ordered.find(r => r.isSubject) ?? null;
-    const fields = columns.filter(c => c.key !== "PropertyName");
+    // Distance (miles) comes first, right after the property name, then City, State and the rest.
+    const fields = React.useMemo(() => {
+        const rest = columns.filter(c => c.key !== "PropertyName");
+        const isDistance = (c: TableColumn) => c.key === "distance_miles" || c.type === "distance";
+        return [...rest.filter(isDistance), ...rest.filter(c => !isDistance(c))];
+    }, [columns]);
+    const alignOf = (f: TableColumn): "left" | "right" => (f.type === "distance" || f.key === "distance_miles" ? "left" : DELTA_TYPES.has(f.type) ? "right" : "left");
 
     const chosenKeys = React.useMemo(() => new Set(selection?.selectedKeys ?? []), [selection]);
-    const ticked = React.useMemo(
-        () => (selection ? selection.options.filter(o => chosenKeys.has(o.key)) : []),
-        [selection, chosenKeys],
-    );
     const unticked = React.useMemo(
-        () => (selection ? selection.options.filter(o => !chosenKeys.has(o.key)) : []),
-        [selection, chosenKeys],
+        () => (selection ? selection.options.filter(o => !chosenKeys.has(o.key) && !selection.pinnedKeys.includes(o.key) && !rows.some(r => r.key === o.key)) : []),
+        [selection, chosenKeys, rows],
     );
     const toggle = (key: string) => {
         if (!selection || !onSelectionChange) return;
@@ -104,12 +107,25 @@ export const PropertyComparison: React.FC<PropertyComparisonProps> = ({
             <table className="ap-table">
                 <thead>
                     <tr>
-                        <th scope="col" style={CORNER_CELL}>Metric</th>
-                        {ordered.map(r => {
-                            const isSelected = r.key === selectedKey;
-                            const pinned = Boolean(selection?.pinnedKeys.includes(r.key));
-                            return (
-                                <th key={r.key} scope="col" style={{ ...HEAD_CELL, ...(isSelected ? { background: SELECTED_BG } : null) }}>
+                        <th scope="col" style={CORNER_CELL}>Property</th>
+                        {fields.map(f => (
+                            <th
+                                key={f.key}
+                                scope="col"
+                                style={{ ...HEAD_CELL, textAlign: alignOf(f) }}
+                            >
+                                {f.label}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {ordered.map(r => {
+                        const isSelected = r.key === selectedKey;
+                        const pinned = Boolean(selection?.pinnedKeys.includes(r.key));
+                        return (
+                            <tr key={r.key} style={{ cursor: "default", ...(isSelected ? { background: SELECTED_BG } : null) }}>
+                                <td style={LABEL_CELL}>
                                     <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
                                         {selection && (
                                             <input
@@ -128,10 +144,19 @@ export const PropertyComparison: React.FC<PropertyComparisonProps> = ({
                                                 onClick={() => onSelect(r.key)}
                                                 aria-pressed={isSelected}
                                                 style={{
-                                                    color: isSelected ? "var(--ap-accent-strong)" : undefined,
+                                                    color: isSelected ? "var(--ap-accent-strong)" : "inherit",
                                                     textAlign: "left",
                                                     whiteSpace: "normal",
                                                     lineHeight: 1.3,
+                                                    fontWeight: 600,
+                                                    fontSize: "inherit",
+                                                    border: 0,
+                                                    background: "transparent",
+                                                    padding: 0,
+                                                    margin: 0,
+                                                    borderRadius: 0,
+                                                    boxShadow: "none",
+                                                    cursor: "pointer",
                                                 }}
                                             >
                                                 {String(r.values.PropertyName ?? "Property")}
@@ -145,26 +170,15 @@ export const PropertyComparison: React.FC<PropertyComparisonProps> = ({
                                             )}
                                         </div>
                                     </div>
-                                </th>
-                            );
-                        })}
-                    </tr>
-                </thead>
-                <tbody>
-                    {fields.map(f => {
-                        const numeric = DELTA_TYPES.has(f.type);
-                        return (
-                            <tr key={f.key} style={{ cursor: "default" }}>
-                                <td style={LABEL_CELL}>{f.label}</td>
-                                {ordered.map(r => {
+                                </td>
+                                {fields.map(f => {
                                     const d = subject && !r.isSubject ? delta(r.values[f.key], subject.values[f.key], f) : null;
                                     return (
                                         <td
-                                            key={r.key}
+                                            key={f.key}
                                             style={{
                                                 borderLeft: "1px solid var(--ap-table-line, #e5e7eb)",
-                                                textAlign: numeric ? "right" : "left",
-                                                ...(r.key === selectedKey ? { background: SELECTED_BG } : null),
+                                                textAlign: alignOf(f),
                                             }}
                                         >
                                             {formatValue(r.values[f.key], f.type, f.decimals)}
@@ -175,53 +189,54 @@ export const PropertyComparison: React.FC<PropertyComparisonProps> = ({
                             </tr>
                         );
                     })}
+                    {selection && unticked.slice(0, MAX_LISTED).map(o => (
+                        <tr key={`off-${o.key}`} style={{ cursor: "pointer", color: "var(--ap-muted)" }} onClick={() => toggle(o.key)}>
+                            <td style={{ ...LABEL_CELL, fontWeight: 500, color: "var(--ap-muted)" }}>
+                                <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={false}
+                                        aria-label={`Add ${o.name}`}
+                                        title="Add to comparison"
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={() => toggle(o.key)}
+                                        style={{ marginTop: 2, flexShrink: 0, accentColor: "var(--ap-accent)" }}
+                                    />
+                                    <div style={{ minWidth: 0, maxWidth: 220, lineHeight: 1.3, fontWeight: 600 }}>{o.name}</div>
+                                </div>
+                            </td>
+                            {fields.map(f => {
+                                const raw = o.values[f.key] ?? (f.key === "distance_miles" ? o.distance : undefined);
+                                return (
+                                    <td
+                                        key={f.key}
+                                        style={{
+                                            borderLeft: "1px solid var(--ap-table-line, #e5e7eb)",
+                                            textAlign: alignOf(f),
+                                        }}
+                                    >
+                                        {formatValue(raw, f.type, f.decimals)}
+                                    </td>
+                                );
+                            })}
+                        </tr>
+                    ))}
+                    {selection && unticked.length > MAX_LISTED && (
+                        <tr style={{ cursor: "default" }}>
+                            <td colSpan={fields.length + 1} style={{ color: "var(--ap-muted)" }}>
+                                Showing {MAX_LISTED} of {unticked.length} not selected.
+                            </td>
+                        </tr>
+                    )}
                     {notFound.length > 0 && (
                         <tr style={{ cursor: "default" }}>
-                            <td colSpan={ordered.length + 1} style={{ color: "var(--ap-danger)" }}>
+                            <td colSpan={fields.length + 1} style={{ color: "var(--ap-danger)" }}>
                                 Not found: {notFound.join(", ")}
                             </td>
                         </tr>
                     )}
                 </tbody>
             </table>
-            {selection && (
-                <div style={{ position: "sticky", left: 0, padding: "10px 12px", borderTop: "1px solid var(--ap-table-line)", minWidth: 320 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                        Select properties
-                        <span style={{ color: "var(--ap-muted)", fontWeight: 500, marginLeft: 8 }}>
-                            {ticked.length + selection.pinnedKeys.length} ticked · {unticked.length} not selected
-                        </span>
-                    </div>
-                    <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                        {subject && (
-                            <label style={{ display: "flex", gap: 8, alignItems: "center", padding: "3px 0", cursor: "default" }}>
-                                <input type="checkbox" checked disabled style={{ accentColor: "var(--ap-accent)" }} />
-                                <span>{String(subject.values.PropertyName ?? "Subject")}</span>
-                                <span className="ap-tag">{selection.pinnedKeys.length > 1 ? "Reference" : "Subject"}</span>
-                            </label>
-                        )}
-                        {ticked.map(o => (
-                            <label key={o.key} style={{ display: "flex", gap: 8, alignItems: "center", padding: "3px 0", cursor: "pointer" }}>
-                                <input type="checkbox" checked onChange={() => toggle(o.key)} style={{ accentColor: "var(--ap-accent)" }} />
-                                <span>{o.name}</span>
-                                {o.subtitle && <span style={{ color: "var(--ap-muted)" }}>{o.subtitle}</span>}
-                                {o.distance !== null && <span style={{ color: "var(--ap-muted)" }}>{o.distance.toFixed(1)} mi</span>}
-                            </label>
-                        ))}
-                        {unticked.slice(0, MAX_LISTED).map(o => (
-                            <label key={o.key} style={{ display: "flex", gap: 8, alignItems: "center", padding: "3px 0", cursor: "pointer", color: "var(--ap-muted)" }}>
-                                <input type="checkbox" checked={false} onChange={() => toggle(o.key)} style={{ accentColor: "var(--ap-accent)" }} />
-                                <span>{o.name}</span>
-                                {o.subtitle && <span>{o.subtitle}</span>}
-                                {o.distance !== null && <span>{o.distance.toFixed(1)} mi</span>}
-                            </label>
-                        ))}
-                        {unticked.length > MAX_LISTED && (
-                            <div style={{ color: "var(--ap-muted)", padding: "4px 0" }}>Showing {MAX_LISTED} of {unticked.length} not selected.</div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

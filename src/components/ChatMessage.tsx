@@ -20,6 +20,26 @@ export function describeEntry(entry: ChatEntry): string {
     return `Table, ${n} ${noun}`;
 }
 
+// Messages sent by the backend about a result (location note, warnings, unmatched names, notes).
+// They are shown in the chat's follow-up section, not above the map.
+export function backendMessages(entry: ChatEntry | null | undefined): string[] {
+    const r = entry?.result;
+    if (!r) return [];
+    const out: string[] = [];
+    const add = (m?: string | null) => {
+        const text = (m ?? "").trim();
+        if (text && text !== entry?.text.trim() && !out.includes(text)) out.push(text);
+    };
+    if (r.unresolved.length > 0) add(`Couldn't match: ${r.unresolved.join(", ")}`);
+    if (r.rows.length > 0) {
+        add(r.location?.message);
+        (r.warnings ?? []).forEach(w => add(w.message));
+    }
+    if (r.area && r.rows.length === 0) add(r.answer);
+    (r.notes ?? []).filter(n => /unit|chart/i.test(n)).slice(0, 3).forEach(n => add(n));
+    return out;
+}
+
 function preview(text: string): string {
     return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }

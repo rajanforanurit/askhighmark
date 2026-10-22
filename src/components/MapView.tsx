@@ -36,6 +36,7 @@ const RING_COLOR = "#f97316";
 const MILE_METERS = 1609.344;
 const EARTH_RADIUS = 6371008.8;
 const RING_STEPS = 120;
+const RESIZE_REFIT_DELAY_MS = 120;
 // The dashed search ring grows with the spread of the properties so the covered area is easy to see.
 const RING_SCALE = 1.3;
 const RING_PADDING_MILES = 2;
@@ -176,6 +177,7 @@ export const MapView = React.forwardRef<MapHandle, MapViewProps>(function MapVie
     const ringRef = React.useRef<google.maps.Polyline | null>(null);
     const areaRef = React.useRef<google.maps.Rectangle | google.maps.Circle | null>(null);
     const onSelectRef = React.useRef(onSelect);
+    const fitRef = React.useRef<(fillCircle?: boolean) => void>(() => undefined);
     const [status, setStatus] = React.useState<"loading" | "ready" | "failed">("loading");
     const [failure, setFailure] = React.useState<MapsFailure>("load");
     const [attempt, setAttempt] = React.useState(0);
@@ -198,16 +200,30 @@ export const MapView = React.forwardRef<MapHandle, MapViewProps>(function MapVie
         const el = containerRef.current;
         if (!el || typeof ResizeObserver === "undefined") return;
         let frame = 0;
+        let refit = 0;
+        let last = { w: el.clientWidth, h: el.clientHeight };
         const observer = new ResizeObserver(() => {
             cancelAnimationFrame(frame);
             frame = requestAnimationFrame(() => {
                 const m = mapRef.current;
-                if (m && typeof google !== "undefined") google.maps.event.trigger(m, "resize");
+                if (!m || typeof google === "undefined") return;
+                google.maps.event.trigger(m, "resize");
+                // When the viewport changes materially (full-screen expand/collapse, window resize) refit the view so
+                // the search circle scales with the map: it fills most of the new viewport, centered, instead of
+                // keeping its old pixel size. Small changes (e.g. scrollbars) leave the user's zoom and pan alone.
+                const w = el.clientWidth;
+                const h = el.clientHeight;
+                const changed = Math.abs(w - last.w) > Math.max(24, last.w * 0.08) || Math.abs(h - last.h) > Math.max(24, last.h * 0.08);
+                last = { w, h };
+                if (!changed) return;
+                window.clearTimeout(refit);
+                refit = window.setTimeout(() => fitRef.current(true), RESIZE_REFIT_DELAY_MS);
             });
         });
         observer.observe(el);
         return () => {
             cancelAnimationFrame(frame);
+            window.clearTimeout(refit);
             observer.disconnect();
         };
     }, [status]);
@@ -347,38 +363,50 @@ export const MapView = React.forwardRef<MapHandle, MapViewProps>(function MapVie
 
     const fitSignature = `${properties.map(p => p.key).sort().join("|")}#${coverage.length}#${area ? `${area.lat},${area.lng},${area.total}` : ""}`;
 
-    React.useEffect(() => {
+    // Fits the view to the properties, search area and ring. Held in a ref (refreshed every render) so the resize
+    // observer can reuse it with the latest data.
+    // fillCircle (used after a resize/expand) also fits the whole search circle so it fills most of the viewport.
+    fitRef.current = (fillCircle = false) => {
         const map = mapRef.current;
-        if (status !== "ready" || !map) return undefined;
-        const timer = window.setTimeout(() => {
-            const bounds = new google.maps.LatLngBounds();
-            let any = false;
-            properties.forEach(p => {
-                bounds.extend({ lat: p.lat, lng: p.lng });
-                any = true;
-            });
-            if (area) {
-                if (area.bounds) {
-                    bounds.union(new google.maps.LatLngBounds(
-                        { lat: area.bounds.south, lng: area.bounds.west },
-                        { lat: area.bounds.north, lng: area.bounds.east },
-                    ));
-                } else {
-                    ringPoints([{ key: "area", name: area.name, lat: area.lat, lng: area.lng, isSubject: true, values: {} }])
-                        .forEach(pt => bounds.extend(pt));
-                    bounds.extend({ lat: area.lat, lng: area.lng });
-                }
-                any = true;
-            } else if (properties.length === 0 || properties.length === coverage.length) {
-                ringPoints(coverage.length > 0 ? coverage : properties).forEach(pt => bounds.extend(pt));
+        if (status !== "ready" || !map) return;
+        const bounds = new google.maps.LatLngBounds();
+        let any = false;
+        properties.forEach(p => {
+            bounds.extend({ lat: p.lat, lng: p.lng });
+            any = true;
+        });
+        if (area) {
+            if (area.bounds) {
+                bounds.union(new google.maps.LatLngBounds(
+                    { lat: area.bounds.south, lng: area.bounds.west },
+                    { lat: area.bounds.north, lng: area.bounds.east },
+                ));
+            } else {
+                ringPoints([{ key: "area", name: area.name, lat: area.lat, lng: area.lng, isSubject: true, values: {} }])
+                    .forEach(pt => bounds.extend(pt));
+                bounds.extend({ lat: area.lat, lng: area.lng });
             }
-            if (!any) return;
-            map.fitBounds(bounds, 40);
-            google.maps.event.addListenerOnce(map, "idle", () => {
-                const zoom = map.getZoom();
-                if (zoom !== undefined && zoom > MAX_FIT_ZOOM) map.setZoom(MAX_FIT_ZOOM);
-            });
-        }, FIT_DELAY_MS);
+            any = true;
+        } else if (properties.length === 0 || properties.length === coverage.length) {
+            ringPoints(coverage.length > 0 ? coverage : properties).forEach(pt => bounds.extend(pt));
+        }
+        if (fillCircle) {
+            if (!area) ringPoints(coverage.length > 0 ? coverage : properties).forEach(pt => bounds.extend(pt));
+            const circle = areaRef.current;
+            const circleBounds = circle && "getBounds" in circle ? circle.getBounds() : null;
+            if (circleBounds) bounds.union(circleBounds);
+        }
+        if (!any) return;
+        map.fitBounds(bounds, 40);
+        google.maps.event.addListenerOnce(map, "idle", () => {
+            const zoom = map.getZoom();
+            if (zoom !== undefined && zoom > MAX_FIT_ZOOM) map.setZoom(MAX_FIT_ZOOM);
+        });
+    };
+
+    React.useEffect(() => {
+        if (status !== "ready") return undefined;
+        const timer = window.setTimeout(() => fitRef.current(), FIT_DELAY_MS);
         return () => window.clearTimeout(timer);
     }, [fitSignature, status]);
 
