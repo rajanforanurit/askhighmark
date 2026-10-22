@@ -1,0 +1,23 @@
+{
+    "visual": {
+        "name": "AskPropDataVis",
+        "displayName": "Ask Property Data",
+        "guid": "askPropDataVis4F3A9C21B7D8E5F0",
+        "visualClassName": "Visual",
+        "version": "1.0.0.0",
+        "description": "AI-assisted property search, nearest-property map, and comparison table for Power BI.",
+        "supportUrl": "https://askpropertydata-grheekb4hpenfsew.southcentralus-01.azurewebsites.net/health",
+        "gitHubUrl": ""
+    },
+    "apiVersion": "5.11.0",
+    "author": {
+        "name": "Anurit Innovation",
+        "email": "rajan.singh@anuritinnovation.com"
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "stringResources": []
+}

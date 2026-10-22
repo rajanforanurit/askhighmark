@@ -1,0 +1,23 @@
+{
+    "name": "askpropdatavis",
+    "version": "1.0.0",
+    "description": "Power BI custom visual for AI-assisted property search, nearest-property mapping, and comparison",
+    "scripts": {
+        "start": "pbiviz start",
+        "package": "pbiviz package",
+        "lint": "eslint ./src/**/*.{ts,tsx}"
+    },
+    "dependencies": {
+        "powerbi-visuals-api": "~5.11.0",
+        "powerbi-visuals-utils-formattingmodel": "^6.0.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    },
+    "devDependencies": {
+        "@types/google.maps": "^3.66.4",
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "powerbi-visuals-tools": "^7.2.1",
+        "typescript": "^5.5.4"
+    }
+}
